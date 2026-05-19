@@ -13,6 +13,8 @@ let resultDisplayEmoji = "";
 let wins = 0;
 let losses = 0;
 let ties = 0;
+let navTimer = 0;
+let lastNavGesture = "NONE";
 let lastGesture = "NONE";
 let gestureStableCount = 0; // 確保手勢穩定
 
@@ -222,11 +224,27 @@ function handleGameLogic(x, y, w, h) {
     fill(200, 255, 200);
     text("👍 大拇指：繼續下一局  |  🤙 比 6：結束遊戲", width / 2, y + h + 40);
 
-    // 導覽手勢判定
-    if (currentGesture === "THUMBS_UP") {
-      gameState = "WAITING";
-    } else if (currentGesture === "SIX") {
-      gameState = "ENDED";
+    // 導覽手勢判定與成功辨識提示
+    if (currentGesture === "THUMBS_UP" || currentGesture === "SIX") {
+      if (lastNavGesture !== currentGesture) {
+        navTimer = millis();
+        lastNavGesture = currentGesture;
+      }
+
+      let isContinue = currentGesture === "THUMBS_UP";
+      let feedbackMsg = isContinue ? "繼續手勢成功辨識" : "結束手勢成功辨識";
+
+      textSize(26);
+      fill(0, 255, 255); // 青色發光感
+      drawingContext.shadowColor = '#00ffff';
+      text(feedbackMsg, width / 2, y + h + 80);
+
+      if (millis() - navTimer > 1000) { // 成功辨識後停留 1 秒再動作
+        gameState = isContinue ? "WAITING" : "ENDED";
+        lastNavGesture = "NONE";
+      }
+    } else {
+      lastNavGesture = "NONE";
     }
   } 
   else if (gameState === "ENDED") {
