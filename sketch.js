@@ -1,13 +1,15 @@
 let capture;
 let handPose;
 let hands = [];
+let stars = [];
 
-// 遊戲狀態：WAITING, THINKING, RESULT, ENDED
-let gameState = "WAITING";
+// 遊戲狀態：START_SCREEN, WAITING, THINKING, RESULT, ENDED
+let gameState = "START_SCREEN";
 let playerChoice = "";
 let aiChoice = "";
 let result = "";
 let timerStart = 0;
+let resultDisplayEmoji = "";
 let lastGesture = "NONE";
 let gestureStableCount = 0; // 確保手勢穩定
 
@@ -20,24 +22,37 @@ function preload() {
 }
 
 function setup() {
-  createCanvas(windowWidth, windowHeight);
+  // 螢幕大小調小一點 (85%)
+  createCanvas(windowWidth * 0.85, windowHeight * 0.85);
   // 擷取攝影機影像
   capture = createCapture(VIDEO);
   capture.size(640, 480);
   // 隱藏預設產生的影像元件，只在畫布上顯示
   capture.hide();
   
+  // 初始化星空
+  for (let i = 0; i < 200; i++) {
+    stars.push(new Star());
+  }
+
   // 開始持續偵測手部
   handPose.detectStart(capture, gotHands);
 }
 
 function draw() {
-  background('#e7c6ff');
+  // 深海藍星空背景
+  background(10, 15, 30);
+  
+  // 繪製星空動畫
+  for (let star of stars) {
+    star.update();
+    star.show();
+  }
 
-  let w = width * 0.5;
-  let h = height * 0.5;
+  let w = width * 0.6;
+  let h = height * 0.6;
   let x = (width - w) / 2;
-  let y = (height - h) / 2;
+  let y = (height - h) / 2 + 50;
 
   push();
   // 左右顛倒處理 (鏡像)
@@ -59,6 +74,10 @@ function draw() {
 }
 
 function drawSkeleton(x, y, w, h) {
+  // 設定發光效果
+  drawingContext.shadowBlur = 10;
+  drawingContext.shadowColor = '#00ffcc';
+  
   for (let i = 0; i < hands.length; i++) {
     let hand = hands[i];
     let landmarks = hand.keypoints;
@@ -103,21 +122,40 @@ function drawSkeleton(x, y, w, h) {
 }
 
 function handleGameLogic(x, y, w, h) {
+  // 套用星空發光文字樣式
+  drawingContext.shadowBlur = 15;
+  drawingContext.shadowColor = 'rgba(255, 255, 255, 0.8)';
+  
   let currentGesture = "NONE";
   if (hands.length > 0) {
     currentGesture = checkGesture(hands[0]);
   }
 
   textAlign(CENTER, CENTER);
-  fill(0);
+  fill(255);
   
-  if (gameState === "WAITING") {
+  if (gameState === "START_SCREEN") {
+    textSize(48);
+    text("準備開始", width / 2, height / 2 - 50);
     textSize(32);
-    text("請出拳 (剪刀、石頭、布)", width / 2, y - 40);
+    fill(200, 200, 255);
+    text("請比手勢 ☝️ (1) 開始遊戲", width / 2, height / 2 + 50);
+    
+    if (currentGesture === "ONE") {
+      gameState = "WAITING";
+    }
+  }
+  else if (gameState === "WAITING") {
+    textSize(48);
+    text("遊戲開始", width / 2, 80);
+    textSize(32);
+    fill(180, 220, 255);
+    text("剪刀、石頭、布！", width / 2, 140);
     
     // 如果偵測到有效拳法，且維持穩定一段時間（避免誤觸）
     if (["石頭", "剪刀", "布"].includes(currentGesture)) {
       playerChoice = currentGesture;
+      resultDisplayEmoji = emojiMap[playerChoice];
       gameState = "THINKING";
       timerStart = millis();
     }
@@ -127,27 +165,32 @@ function handleGameLogic(x, y, w, h) {
     let countdown = Math.ceil(3 - elapsed);
     
     textSize(64);
-    fill(255, 0, 0);
-    text(`電腦思考中... ${countdown}`, width / 2, height / 2);
+    fill(255, 215, 0); // 金色思考
+    text(`AI 思考中... ${countdown}`, width / 2, height / 2);
     
     if (elapsed >= 3) {
       aiChoice = random(choices);
       determineWinner();
       gameState = "RESULT";
+      // 判定完後，上方文字改為玩家出的貼圖
+      resultDisplayEmoji = emojiMap[playerChoice];
     }
   } 
   else if (gameState === "RESULT") {
-    // 顯示結果
+    // 上方改為顯示玩家手勢貼圖
+    textSize(100);
+    text(resultDisplayEmoji, width / 2, 100);
+
     textSize(40);
-    text(`玩家: ${emojiMap[playerChoice]}  VS  電腦: ${emojiMap[aiChoice]}`, width / 2, y - 60);
+    text(`AI 出的是: ${emojiMap[aiChoice]}`, width / 2, 180);
     textSize(80);
-    text(result, width / 2, height / 2);
+    text(result, width / 2, height / 2 + 50);
     
     // 顯示操作選項
     textSize(24);
-    fill(50);
-    text("👍 大拇指朝上：繼續下一局", width / 2, y + h + 40);
-    text("🤙 比 6：結束遊戲", width / 2, y + h + 80);
+    fill(200, 255, 200);
+    text("👍 大拇指朝上：繼續下一局", width / 2, y + h + 50);
+    text("🤙 比 6：結束遊戲", width / 2, y + h + 90);
 
     // 導覽手勢判定
     if (currentGesture === "THUMBS_UP") {
@@ -157,7 +200,7 @@ function handleGameLogic(x, y, w, h) {
     }
   } 
   else if (gameState === "ENDED") {
-    background('#2b2d42');
+    background(0, 0, 0, 200);
     fill(255);
     textSize(60);
     text("遊戲結束", width / 2, height / 2);
@@ -196,6 +239,10 @@ function checkGesture(hand) {
   let pinkyUp = landmarks[20].y < landmarks[18].y;
   let thumbUp = thumbTip.y < thumbMcp.y;
 
+  // 0. 手勢 1 (只有食指伸直)
+  if (indexUp && !middleUp && !ringUp && !pinkyUp && !thumbUp) {
+    return "ONE";
+  }
   // 1. 比 6 (大拇指和小指伸直，其他收起)
   if (thumbUp && !indexUp && !middleUp && !ringUp && pinkyUp) {
     return "SIX";
@@ -220,6 +267,27 @@ function checkGesture(hand) {
   return "NONE";
 }
 
+// 星空背景類別
+class Star {
+  constructor() {
+    this.x = random(width);
+    this.y = random(height);
+    this.size = random(1, 3);
+    this.t = random(TAU);
+  }
+  update() {
+    this.t += 0.05;
+    this.y += 0.2; // 緩慢向下飄動
+    if (this.y > height) this.y = 0;
+  }
+  show() {
+    let val = map(sin(this.t), -1, 1, 100, 255);
+    fill(val);
+    noStroke();
+    circle(this.x, this.y, this.size);
+  }
+}
+
 function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
+  resizeCanvas(windowWidth * 0.85, windowHeight * 0.85);
 }
