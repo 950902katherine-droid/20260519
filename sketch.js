@@ -33,6 +33,20 @@ function draw() {
   scale(-1, 1);
   // 在翻轉後的座標系中繪製影像以維持居中
   image(capture, x, y, w, h);
+
+  // 繪製手部關鍵點
+  for (let i = 0; i < hands.length; i++) {
+    let hand = hands[i];
+    for (let j = 0; j < hand.keypoints.length; j++) {
+      let keypoint = hand.keypoints[j];
+      fill(0, 255, 0); // 設置關鍵點顏色為綠色
+      noStroke();
+      // 將原始影像座標 (640x480) 映射到畫布上的顯示區域 (x, y, w, h)
+      let px = map(keypoint.x, 0, 640, x, x + w);
+      let py = map(keypoint.y, 0, 480, y, y + h);
+      circle(px, py, 10);
+    }
+  }
   pop();
 
   // 處理辨識結果
