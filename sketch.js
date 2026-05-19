@@ -34,33 +34,59 @@ function draw() {
   // 在翻轉後的座標系中繪製影像以維持居中
   image(capture, x, y, w, h);
 
-  // 繪製手部關鍵點
   for (let i = 0; i < hands.length; i++) {
     let hand = hands[i];
-    for (let j = 0; j < hand.keypoints.length; j++) {
-      let keypoint = hand.keypoints[j];
-      fill(0, 255, 0); // 設置關鍵點顏色為綠色
+    let landmarks = hand.keypoints;
+
+    // 繪製手部骨架線條
+    stroke(0, 255, 0); // 綠色線條
+    strokeWeight(3);
+
+    // 定義骨架連接點 (MediaPipe Hand landmarks)
+    const connections = [
+      [0, 1], [1, 2], [2, 3], [3, 4], // 拇指
+      [0, 5], [5, 6], [6, 7], [7, 8], // 食指
+      [0, 9], [9, 10], [10, 11], [11, 12], // 中指
+      [0, 13], [13, 14], [14, 15], [15, 16], // 無名指
+      [0, 17], [17, 18], [18, 19], [19, 20], // 小指
+      [5, 9], [9, 13], [13, 17] // 掌心連接
+    ];
+
+    for (let connection of connections) {
+      let p1 = landmarks[connection[0]];
+      let p2 = landmarks[connection[1]];
+
+      // 映射座標
+      let px1 = map(p1.x, 0, 640, x, x + w);
+      let py1 = map(p1.y, 0, 480, y, y + h);
+      let px2 = map(p2.x, 0, 640, x, x + w);
+      let py2 = map(p2.y, 0, 480, y, y + h);
+
+      line(px1, py1, px2, py2);
+    }
+
+    // 繪製手部關鍵點 (圓點)
+    for (let j = 0; j < landmarks.length; j++) {
+      let keypoint = landmarks[j];
+      fill(255, 0, 0); // 紅色圓點
       noStroke();
-      // 將原始影像座標 (640x480) 映射到畫布上的顯示區域 (x, y, w, h)
       let px = map(keypoint.x, 0, 640, x, x + w);
       let py = map(keypoint.y, 0, 480, y, y + h);
-      circle(px, py, 10);
+      circle(px, py, 8); // 稍微縮小圓點半徑
     }
   }
   pop();
 
-  // 處理辨識結果
-  if (hands.length > 0) {
-    gesture = checkGesture(hands[0]);
-  } else {
-    gesture = "請將手伸入畫面";
-  }
-
-  // 顯示結果文字
-  fill(0);
-  textSize(48);
-  textAlign(CENTER, CENTER);
-  text(gesture, width / 2, y + h + 50);
+  // 辨識邏輯和文字顯示已移除，如果需要可以重新加入
+  // if (hands.length > 0) {
+  //   gesture = checkGesture(hands[0]);
+  // } else {
+  //   gesture = "請將手伸入畫面";
+  // }
+  // fill(0);
+  // textSize(48);
+  // textAlign(CENTER, CENTER);
+  // text(gesture, width / 2, y + h + 50);
 }
 
 function gotHands(results) {
