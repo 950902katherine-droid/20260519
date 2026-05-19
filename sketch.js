@@ -10,6 +10,9 @@ let aiChoice = "";
 let result = "";
 let timerStart = 0;
 let resultDisplayEmoji = "";
+let wins = 0;
+let losses = 0;
+let ties = 0;
 let lastGesture = "NONE";
 let gestureStableCount = 0; // 確保手勢穩定
 
@@ -22,8 +25,8 @@ function preload() {
 }
 
 function setup() {
-  // 螢幕大小調小一點 (85%)
-  createCanvas(windowWidth * 0.85, windowHeight * 0.85);
+  // 背景全螢幕
+  createCanvas(windowWidth, windowHeight);
   // 擷取攝影機影像
   capture = createCapture(VIDEO);
   capture.size(640, 480);
@@ -31,7 +34,7 @@ function setup() {
   capture.hide();
   
   // 初始化星空
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 400; i++) {
     stars.push(new Star());
   }
 
@@ -49,10 +52,10 @@ function draw() {
     star.show();
   }
 
-  let w = width * 0.6;
-  let h = height * 0.6;
+  let w = v(width * 0.5, 640); // 影像寬度取畫布一半，最大 640
+  let h = w * 0.75;             // 比例 4:3
   let x = (width - w) / 2;
-  let y = (height - h) / 2 + 50;
+  let y = (height - h) / 2;
 
   push();
   // 左右顛倒處理 (鏡像)
@@ -121,6 +124,11 @@ function drawSkeleton(x, y, w, h) {
   }
 }
 
+// 輔助函式：確保數值不超過上限
+function v(val, maxVal) {
+  return val > maxVal ? maxVal : val;
+}
+
 function handleGameLogic(x, y, w, h) {
   // 套用星空發光文字樣式
   drawingContext.shadowBlur = 15;
@@ -131,66 +139,88 @@ function handleGameLogic(x, y, w, h) {
     currentGesture = checkGesture(hands[0]);
   }
 
+  // 1. 顯示上方計分板
+  textSize(24);
+  textAlign(LEFT, BOTTOM);
+  drawingContext.shadowColor = '#00ff00';
+  fill(150, 255, 150);
+  text(`勝: ${wins}`, x, y - 15);
+  
+  textAlign(CENTER, BOTTOM);
+  drawingContext.shadowColor = '#ffff00';
+  fill(255, 255, 150);
+  text(`平手: ${ties}`, x + w/2, y - 15);
+  
+  textAlign(RIGHT, BOTTOM);
+  drawingContext.shadowColor = '#ff0000';
+  fill(255, 150, 150);
+  text(`敗: ${losses}`, x + w, y - 15);
+
+  // 2. 處理遊戲狀態邏輯
   textAlign(CENTER, CENTER);
   fill(255);
   
   if (gameState === "START_SCREEN") {
-    textSize(48);
-    text("準備開始", width / 2, height / 2 - 50);
-    textSize(32);
+    textSize(28);
     fill(200, 200, 255);
-    text("請比手勢 ☝️ (1) 開始遊戲", width / 2, height / 2 + 50);
+    text("準備開始：請比手勢 ☝️ (1) 開始遊戲", width / 2, y + h + 40);
     
     if (currentGesture === "ONE") {
       gameState = "WAITING";
     }
   }
   else if (gameState === "WAITING") {
-    textSize(48);
-    text("遊戲開始", width / 2, 80);
-    textSize(32);
-    fill(180, 220, 255);
-    text("剪刀、石頭、布！", width / 2, 140);
+    textSize(28);
+    fill(255);
+    text("遊戲開始：剪刀、石頭、布！", width / 2, y + h + 40);
     
-    // 如果偵測到有效拳法，且維持穩定一段時間（避免誤觸）
     if (["石頭", "剪刀", "布"].includes(currentGesture)) {
       playerChoice = currentGesture;
-      resultDisplayEmoji = emojiMap[playerChoice];
       gameState = "THINKING";
       timerStart = millis();
     }
   } 
   else if (gameState === "THINKING") {
+    // 顯示在畫面中間
     let elapsed = (millis() - timerStart) / 1000;
     let countdown = Math.ceil(3 - elapsed);
     
-    textSize(64);
+    textSize(48);
     fill(255, 215, 0); // 金色思考
-    text(`AI 思考中... ${countdown}`, width / 2, height / 2);
+    text(`AI 思考中... ${countdown}`, x + w/2, y + h/2);
     
+    textSize(24);
+    fill(180, 220, 255);
+    text("系統判定中...", width / 2, y + h + 40);
+
     if (elapsed >= 3) {
       aiChoice = random(choices);
       determineWinner();
       gameState = "RESULT";
-      // 判定完後，上方文字改為玩家出的貼圖
-      resultDisplayEmoji = emojiMap[playerChoice];
     }
   } 
   else if (gameState === "RESULT") {
-    // 上方改為顯示玩家手勢貼圖
-    textSize(100);
-    text(resultDisplayEmoji, width / 2, 100);
+    // 影像區域暗轉遮罩
+    noStroke();
+    fill(0, 0, 0, 160);
+    rect(x, y, w, h);
 
-    textSize(40);
-    text(`AI 出的是: ${emojiMap[aiChoice]}`, width / 2, 180);
-    textSize(80);
-    text(result, width / 2, height / 2 + 50);
+    // 中間顯示雙方出拳與結果
+    textSize(32);
+    fill(255);
+    text(`${result}`, x + w/2, y + h/2 - 50);
+    
+    textSize(64);
+    text(`${emojiMap[playerChoice]} vs ${emojiMap[aiChoice]}`, x + w/2, y + h/2 + 20);
+    
+    textSize(20);
+    fill(200);
+    text(`(你出 ${playerChoice}，AI 出 ${aiChoice})`, x + w/2, y + h/2 + 75);
     
     // 顯示操作選項
-    textSize(24);
+    textSize(22);
     fill(200, 255, 200);
-    text("👍 大拇指朝上：繼續下一局", width / 2, y + h + 50);
-    text("🤙 比 6：結束遊戲", width / 2, y + h + 90);
+    text("👍 大拇指：繼續下一局  |  🤙 比 6：結束遊戲", width / 2, y + h + 40);
 
     // 導覽手勢判定
     if (currentGesture === "THUMBS_UP") {
@@ -202,9 +232,9 @@ function handleGameLogic(x, y, w, h) {
   else if (gameState === "ENDED") {
     background(0, 0, 0, 200);
     fill(255);
-    textSize(60);
+    textSize(48);
     text("遊戲結束", width / 2, height / 2);
-    textSize(24);
+    textSize(20);
     text("請重新整理網頁以開始", width / 2, height / 2 + 80);
   }
 }
@@ -212,14 +242,17 @@ function handleGameLogic(x, y, w, h) {
 function determineWinner() {
   if (playerChoice === aiChoice) {
     result = "平手！ 🤝";
+    ties++;
   } else if (
     (playerChoice === "石頭" && aiChoice === "剪刀") ||
     (playerChoice === "剪刀" && aiChoice === "布") ||
     (playerChoice === "布" && aiChoice === "石頭")
   ) {
     result = "你贏了！ 🎉";
+    wins++;
   } else {
     result = "你輸了... 💀";
+    losses++;
   }
 }
 
@@ -289,5 +322,5 @@ class Star {
 }
 
 function windowResized() {
-  resizeCanvas(windowWidth * 0.85, windowHeight * 0.85);
+  resizeCanvas(windowWidth, windowHeight);
 }
